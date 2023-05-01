@@ -65,6 +65,7 @@ for host in hostsCount:
     for i in range(9):
         rates[rows[i].__getitem__('host')] = (rows[i].__getitem__('count') / hosts[host].count()) # Percentage of requests
     
+    # Create bar graphs for percentage of request
     plt.clf()
     plt.title(host)
     plt.xticks(rotation=90)
@@ -73,3 +74,33 @@ for host in hostsCount:
     
     
 #%% Q1_D
+for host in hostsCount:
+    hostsCount[host].select('host').first() # Select most frequent host
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
