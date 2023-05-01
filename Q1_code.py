@@ -18,69 +18,58 @@ NASA_Jul95 = 'ftp://ita.ee.lbl.gov/traces/NASA_access_log_Jul95.gz'
 data_loc = '../Data'
 wget.download(NASA_Jul95, out=data_loc)
 
-#%% Load file
+#%% Load file & split into columns
 logFile=spark.read.text("../ScalableML/Data/NASA_access_log_Jul95.gz").cache()
 #logFile=spark.read.text("../Data/NASA_access_log_Jul95.gz").cache()
 
-#%% Q1_A using dict
+data = logFile.withColumn('host', F.regexp_extract('value', '^(.*) - -.*', 1)) \
+                .withColumn('timestamp', F.regexp_extract('value', '.* - - \[(.*)\].*',1)) \
+                .withColumn('request', F.regexp_extract('value', '.*\"(.*)\".*',1)) \
+                .withColumn('HTTP reply code', F.split('value', ' ').getItem(F.size(F.split('value', ' ')) -2).cast("int")) \
+                .withColumn('bytes in the reply', F.split('value', ' ').getItem(F.size(F.split('value', ' ')) - 1).cast("int")).drop("value").cache()
+
+
+#%% Q1_A filter logfile into hosts
 hosts = {
-    "germany": logFile.filter(logFile.value.contains(".de")).count(),
-    "canada": logFile.filter(logFile.value.contains(".ca")).count(),
-    "singapore": logFile.filter(logFile.value.contains(".sg")).count()
+    "Germany": data.filter(data.host.rlike('.de$')),
+    "Canada": data.filter(data.host.rlike('.ca$')),
+    "Singapore": data.filter(data.host.rlike('.sg$'))
 }
 
-plt.bar(hosts.keys(),hosts.values())
+counts = {}
+for host in hosts:
+    counts[host] = hosts[host].count()
+
+plt.bar(hosts.keys(),counts.values())
 plt.savefig('requests.png')
 for host in hosts:
-    print('There are {hosts[host]} requests from {host}')
+    print(f'There are {counts[host]} requests from {host}')
 
 #%% Q1_B using dict
-hostsData = {}
-for host in hosts:
-    # split into 5 columns using regex and split from lab 2
-    hostsData[host] = hosts[host].withColumn('host', F.regexp_extract('value', '^(.*) - -.*', 1)) \
-                                .withColumn('timestamp', F.regexp_extract('value', '.* - - \[(.*)\].*',1)) \
-                                .withColumn('request', F.regexp_extract('value', '.*\"(.*)\".*',1)) \
-                                .withColumn('HTTP reply code', F.split('value', ' ').getItem(F.size(F.split('value', ' ')) -2).cast("int")) \
-                                .withColumn('bytes in the reply', F.split('value', ' ').getItem(F.size(F.split('value', ' ')) - 1).cast("int")).drop("value").cache()
 
 hostsCount = {}
-for host in hostsData:
-    hostsCount[host] = hostsData[host].select('host').distinct().count() # Number of unique hosts
-    
-    
-
-#%% Q1_A using list
-hosts = [
-    logFile.filter(logFile.value.contains(".de")).count(),  #Germany
-    logFile.filter(logFile.value.contains(".ca")).count(),  #Canada
-    logFile.filter(logFile.value.contains(".sg")).count()   #Singapore
-    ]
-
-x = ['germany', 'canada', 'singapore']
-
-plt.bar(x,hosts)
-plt.savefig('requests.png')
-
-#%% Q1_B using list
-data = []
 for host in hosts:
-    data.append(host.withColumn('host', F.regexp_extract('value', '^(.*) - -.*', 1)) \
-                    .withColumn('timestamp', F.regexp_extract('value', '.* - - \[(.*)\].*',1)) \
-                    .withColumn('request', F.regexp_extract('value', '.*\"(.*)\".*',1)) \
-                    .withColumn('HTTP reply code', F.split('value', ' ').getItem(F.size(F.split('value', ' ')) -2).cast("int")) \
-                    .withColumn('bytes in the reply', F.split('value', ' ').getItem(F.size(F.split('value', ' ')) - 1).cast("int")).drop("value").cache()
-                )
+    uniqueHosts = hosts[host].select('host').distinct().count() # Number of unique hosts
+    hostsCount[host] = hosts[host].select('host').groupBy('host').count().sort('count', ascending=False) # Sort by most visited host
     
+    
+    print(f'{host} has {uniqueHosts} unique hosts. \nThe top 9 are:')
+    hostsCount[host].show(9,False)
 
 
 
-# number of unique hosts
-n_hosts = data.select('host').distinct().count()
-
-# most visited host
-host_count = data.select('host').groupBy('host').count().sort('count', ascending=False)
-host_max = host_count.select("host").first()['host']
-print("==================== Question 3 ====================")
-print(f"The most frequently visited host is {host_max}")
-print("====================================================")
+#%% Q1_C
+for host in hostsCount:
+    rows = hostsCount[host].collect()
+    rates = {}
+    for i in range(9):
+        rates[rows[i].__getitem__('host')] = (rows[i].__getitem__('count') / hosts[host].count()) # Percentage of requests
+    
+    plt.clf()
+    plt.title(host)
+    plt.xticks(rotation=90)
+    plt.bar(rates.keys(), rates.values())
+    plt.savefig(f'{host} rates.png', bbox_inches='tight')
+    
+    
+#%% Q1_D
