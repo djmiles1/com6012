@@ -2,7 +2,7 @@
 #$ -l h_rt=6:00:00  # time needed in hours:mins:secs
 #$ -pe smp 2 # number of cores requested
 #$ -l rmem=8G # size of memory requested
-#$ -o ../Output/Q1_output.txt  # This is where your output and errors are logged
+#$ -o Q1_output.txt  # This is where your output and errors are logged
 #$ -j y # normal and error outputs into a single file (the file above)
 #$ -M acp21djm@shef.ac.uk # notify you by email, remove this line if you don't want to be notified
 #$ -m ea # email you when it finished or aborted
