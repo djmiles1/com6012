@@ -19,8 +19,8 @@ data_loc = '../Data'
 wget.download(NASA_Jul95, out=data_loc)
 
 #%% Load file & split into columns
-logFile=spark.read.text("../ScalableML/Data/NASA_access_log_Jul95.gz").cache()
-#logFile=spark.read.text("../Data/NASA_access_log_Jul95.gz").cache()
+#logFile=spark.read.text("../ScalableML/Data/NASA_access_log_Jul95.gz").cache()
+logFile=spark.read.text("../Data/NASA_access_log_Jul95.gz").cache()
 
 data = logFile.withColumn('host', F.regexp_extract('value', '^(.*) - -.*', 1)) \
                 .withColumn('timestamp', F.regexp_extract('value', '.* - - \[(.*)\].*',1)) \
